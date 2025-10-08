@@ -204,14 +204,35 @@
         metaTitle: "Details",
         metaClose: "Sluiten",
         metaLabels: { name:"Naam", info:"Info", security:"Beveiliging" }
-      }
+      },
+      es: {
+  chipEnc: "Cifrado de extremo a extremo",
+  chipCtrl: "Acceso controlado",
+  chipExp: "Caduca en 7 días",
+  viewMeta: "Detalles del archivo",
+  open: "Abrir documento",
+  title: "Confirme su correo electrónico",
+  invalidEmail: "Dirección de correo no válida",
+  continue: "Continuar",
+  cancel: "Cancelar",
+  placeholder: "usuario@empresa.com",
+  errorGeneric: "No se pudo procesar, inténtelo de nuevo",
+  redirecting: "Continuando…",
+  metaTitle: "Detalles",
+  metaClose: "Cerrar",
+  metaLabels: { name: "Nombre", info: "Información", security: "Seguridad" },
+  // Optional banner text (your code falls back if absent)
+  banner: "Documentos seguros con acceso controlado"
+}
     };
 
     const LANG = (() => {
-      const urlLang = new URLSearchParams(location.search).get('lang');
-      const cand = (urlLang || (navigator.languages && navigator.languages[0]) || navigator.language || 'en').toLowerCase().slice(0,2);
-      return ['en','fr','de','nl'].includes(cand) ? cand : 'en';
-    })();
+  const urlLang = new URLSearchParams(location.search).get('lang');
+  const cand = (urlLang || (navigator.languages && navigator.languages[0]) || navigator.language || 'en')
+    .toLowerCase().slice(0,2);
+  return ['en','fr','de','nl','es'].includes(cand) ? cand : 'en';
+})();
+
     const t = DICT[LANG];
 
     /* ================== Main ================== */
